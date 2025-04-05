@@ -9,15 +9,20 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace mp3Downloader
 {
     public partial class Form1 : Form
     {
         private string rutaDescarga;
+        private Timer timer;
+        private int puntosCount = 0;
         public Form1()
         {
             InitializeComponent();
+            labDescargado.Visible = false;
+            labDescargando.Visible = false;
         }
 
         private void butDownload_Click(object sender, EventArgs e)
@@ -30,24 +35,25 @@ namespace mp3Downloader
                 return;
             }
 
-            DescargarMP3(url, "320K");
+            DescargarMP3(url);
         }
 
-        private void DescargarMP3(string url, string calidad)
+        private void DescargarMP3(string url)
         {
             try
             {
+                labDescargando.Visible = true;
 
                 string directorioPrograma = AppDomain.CurrentDomain.BaseDirectory;
 
                 // Crear la carpeta "DescargasMP3" dentro del directorio del programa
                 string directorioDescarga = Path.Combine(directorioPrograma, "DescargasMP3");
-                Directory.CreateDirectory(directorioDescarga); // Crea el directorio si no existe
+                Directory.CreateDirectory(directorioDescarga); 
 
                 // Usamos la plantilla "%(title)s.%(ext)s" para que el archivo se guarde con el nombre del título del video
                 string rutaArchivo = Path.Combine(directorioDescarga, "%(title)s.%(ext)s");
 
-                string argumentos = $"-x --audio-format mp3 --audio-quality {calidad} -o \"{rutaArchivo}\" \"{url}\"";
+                string argumentos = $"-x --audio-format mp3 --audio-quality 320k -o \"{rutaArchivo}\" \"{url}\"";
 
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
@@ -78,18 +84,19 @@ namespace mp3Downloader
                 proc.BeginErrorReadLine();
                 proc.WaitForExit();
 
+                labDescargando.Visible = false;
+                labDescargado.ForeColor = Color.ForestGreen;
+                labDescargado.Visible = true;
+
                 if (!string.IsNullOrEmpty(nombreArchivoDescargado))
                 {
-                    // Llama al formulario para editar las etiquetas con la ruta completa del archivo descargado
-                    FormEditarTags formEditar = new FormEditarTags(nombreArchivoDescargado);
-                    formEditar.ShowDialog();
-
-                    MessageBox.Show("¡Descarga completada!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    MessageBox.Show($"¡Descarga completada! {nombreArchivoDescargado}", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    txtURL.Text = "";
+                    labDescargado.Visible = false;
                 }
                 else
-                {
                     MessageBox.Show("No se pudo obtener el nombre del archivo descargado.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
             }
             catch (Exception ex)
             {
