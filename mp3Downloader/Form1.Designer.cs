@@ -33,12 +33,13 @@
             this.label1 = new System.Windows.Forms.Label();
             this.labDescargado = new System.Windows.Forms.Label();
             this.labDescargando = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // txtURL
             // 
             this.txtURL.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtURL.Location = new System.Drawing.Point(57, 82);
+            this.txtURL.Location = new System.Drawing.Point(57, 69);
             this.txtURL.Name = "txtURL";
             this.txtURL.Size = new System.Drawing.Size(452, 23);
             this.txtURL.TabIndex = 0;
@@ -49,7 +50,7 @@
             this.butDownload.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.butDownload.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.butDownload.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.butDownload.Location = new System.Drawing.Point(221, 122);
+            this.butDownload.Location = new System.Drawing.Point(221, 134);
             this.butDownload.Name = "butDownload";
             this.butDownload.Size = new System.Drawing.Size(129, 45);
             this.butDownload.TabIndex = 1;
@@ -61,36 +62,48 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 20F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(111, 23);
+            this.label1.Location = new System.Drawing.Point(202, 22);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(349, 31);
+            this.label1.Size = new System.Drawing.Size(182, 31);
             this.label1.TabIndex = 2;
-            this.label1.Text = "YouTube To MP3 320kbm";
+            this.label1.Text = "MP3 320kbm";
             // 
             // labDescargado
             // 
             this.labDescargado.AutoSize = true;
-            this.labDescargado.Location = new System.Drawing.Point(227, 182);
+            this.labDescargado.Location = new System.Drawing.Point(248, 188);
             this.labDescargado.Name = "labDescargado";
-            this.labDescargado.Size = new System.Drawing.Size(117, 13);
+            this.labDescargado.Size = new System.Drawing.Size(73, 13);
             this.labDescargado.TabIndex = 4;
-            this.labDescargado.Text = "¡Descarga completada!";
+            this.labDescargado.Text = "¡Downloaded!";
             this.labDescargado.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // labDescargando
             // 
             this.labDescargando.AutoSize = true;
-            this.labDescargando.Location = new System.Drawing.Point(246, 182);
+            this.labDescargando.Location = new System.Drawing.Point(248, 188);
             this.labDescargando.Name = "labDescargando";
-            this.labDescargando.Size = new System.Drawing.Size(80, 13);
+            this.labDescargando.Size = new System.Drawing.Size(78, 13);
             this.labDescargando.TabIndex = 5;
-            this.labDescargando.Text = "Descargando...";
+            this.labDescargando.Text = "Downloading...";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(75, 101);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(425, 26);
+            this.label2.TabIndex = 6;
+            this.label2.Text = "Copy and paste the YouTube video or SoundCloud track link that you want to downlo" +
+    "ad.\n\n";
+            this.label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(576, 219);
+            this.Controls.Add(this.label2);
             this.Controls.Add(this.labDescargando);
             this.Controls.Add(this.labDescargado);
             this.Controls.Add(this.label1);
@@ -110,6 +123,7 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label labDescargado;
         private System.Windows.Forms.Label labDescargando;
+        private System.Windows.Forms.Label label2;
     }
 }
 

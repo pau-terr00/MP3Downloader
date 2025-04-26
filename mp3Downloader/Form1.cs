@@ -35,9 +35,18 @@ namespace mp3Downloader
                 return;
             }
 
+            if (!EsURLValida(url))
+            {
+                MessageBox.Show("La URL ingresada no es válida.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             DescargarMP3(url);
         }
-
+        private bool EsURLValida(string url)
+        {
+            return Uri.IsWellFormedUriString(url, UriKind.Absolute) && (url.Contains("youtube.com") || url.Contains("soundcloud.com"));
+        }
         private void DescargarMP3(string url)
         {
             try
@@ -103,6 +112,5 @@ namespace mp3Downloader
                 MessageBox.Show("Error al descargar:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
     }
 }
