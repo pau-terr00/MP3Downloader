@@ -1,115 +1,388 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
+using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
-using System.Text;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO;
-using System.Diagnostics;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace mp3Downloader
 {
     public partial class Form1 : Form
     {
         private string rutaDescarga;
-        private Timer timer;
-        private int puntosCount = 0;
+        private string nombreCancion = "";
+
         public Form1()
         {
             InitializeComponent();
+
             labDescargado.Visible = false;
-            labDescargando.Visible = false;
+            progressBar.Visible = false;
+            lblProgress.Visible = false;
+            lblSong.Visible = false;
         }
 
-        private void butDownload_Click(object sender, EventArgs e)
+        private async void butDownload_Click(object sender, EventArgs e)
         {
             string url = txtURL.Text.Trim();
 
             if (string.IsNullOrEmpty(url))
             {
-                MessageBox.Show("Por favor, ingresa un enlace válido.", "Faltan datos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    "Por favor, ingresa un enlace válido.",
+                    "Faltan datos",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
                 return;
             }
 
             if (!EsURLValida(url))
             {
-                MessageBox.Show("La URL ingresada no es válida.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    "La URL ingresada no es válida.",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 return;
             }
 
-            DescargarMP3(url);
+            await DescargarMP3(url);
         }
+
         private bool EsURLValida(string url)
         {
-            return Uri.IsWellFormedUriString(url, UriKind.Absolute) && (url.Contains("youtube.com") || url.Contains("soundcloud.com"));
+            return Uri.IsWellFormedUriString(url, UriKind.Absolute)
+                && (
+                    url.Contains("youtube.com") ||
+                    url.Contains("youtu.be") ||
+                    url.Contains("soundcloud.com")
+                );
         }
-        private void DescargarMP3(string url)
+
+        private async Task DescargarMP3(string url)
         {
             try
             {
-                labDescargando.Visible = true;
+                // --------------------------------
+                // CAMBIAR INTERFAZ A DESCARGANDO
+                // --------------------------------
 
-                string directorioPrograma = AppDomain.CurrentDomain.BaseDirectory;
+                butDownload.Enabled = false;
+                txtURL.Enabled = false;
 
-                // Crear la carpeta "DescargasMP3" dentro del directorio del programa
-                string directorioDescarga = Path.Combine(directorioPrograma, "DescargasMP3");
-                Directory.CreateDirectory(directorioDescarga); 
+                labDescargado.Visible = false;
 
-                // Usamos la plantilla "%(title)s.%(ext)s" para que el archivo se guarde con el nombre del título del video
-                string rutaArchivo = Path.Combine(directorioDescarga, "%(title)s.%(ext)s");
+                progressBar.Visible = true;
+                lblProgress.Visible = true;
+                lblSong.Visible = true;
 
-                string argumentos = $"-x --audio-format mp3 --audio-quality 320k -o \"{rutaArchivo}\" \"{url}\"";
+                progressBar.Value = 0;
+                lblProgress.Text = "0%";
+                lblSong.Text = "Getting song information...";
+
+                // --------------------------------
+                // OBTENER NOMBRE DE LA CANCIÓN
+                // --------------------------------
+
+                nombreCancion = await ObtenerNombreCancion(url);
+
+                if (string.IsNullOrEmpty(nombreCancion))
+                {
+                    nombreCancion = "Unknown song";
+                }
+
+                // Mostrar nombre mientras descarga
+                lblSong.Text = nombreCancion;
+
+                // --------------------------------
+                // CARPETA DE DESCARGA
+                // --------------------------------
+
+                string directorioPrograma =
+                    AppDomain.CurrentDomain.BaseDirectory;
+
+                string directorioDescarga =
+                    Path.Combine(
+                        directorioPrograma,
+                        "DescargasMP3");
+
+                Directory.CreateDirectory(directorioDescarga);
+
+                string rutaArchivo =
+                    Path.Combine(
+                        directorioDescarga,
+                        "%(title)s.%(ext)s");
+
+                rutaDescarga = directorioDescarga;
+
+                // --------------------------------
+                // CONFIGURACIÓN DE YT-DLP
+                // --------------------------------
 
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = "yt-dlp",
-                    Arguments = argumentos,
+
+                    Arguments =
+                        $"--no-playlist " +
+                        $"--js-runtimes deno " +
+                        $"--newline " +
+                        $"--progress " +
+                        $"--progress-template \"download:%(progress._percent_str)s\" " +
+                        $"-x " +
+                        $"--audio-format mp3 " +
+                        $"--audio-quality 320K " +
+                        $"--print after_move:filepath " +
+                        $"-o \"{rutaArchivo}\" " +
+                        $"\"{url}\"",
+
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true
                 };
 
-                Process proc = new Process { StartInfo = psi };
-
-                string nombreArchivoDescargado = string.Empty;
-
-                // Escuchar la salida estándar de yt-dlp para obtener el nombre del archivo
-                proc.OutputDataReceived += (s, e) =>
+                using (Process proc = new Process())
                 {
-                    // Analizar las líneas de salida de yt-dlp
-                    if (e.Data != null && e.Data.Contains("Destination:"))
+                    proc.StartInfo = psi;
+
+                    // --------------------------------
+                    // SALIDA NORMAL
+                    // --------------------------------
+
+                    proc.OutputDataReceived += (sender, args) =>
                     {
-                        // Extraer la ruta completa del archivo desde la salida
-                        nombreArchivoDescargado = e.Data.Split(new[] { "Destination: " }, StringSplitOptions.None)[1];
+                        if (!string.IsNullOrEmpty(args.Data))
+                        {
+                            ProcesarSalidaYtdlp(args.Data);
+                        }
+                    };
+
+                    // --------------------------------
+                    // ERRORES / PROGRESO DE YT-DLP
+                    // --------------------------------
+
+                    proc.ErrorDataReceived += (sender, args) =>
+                    {
+                        if (!string.IsNullOrEmpty(args.Data))
+                        {
+                            ProcesarSalidaYtdlp(args.Data);
+                        }
+                    };
+
+                    proc.Start();
+
+                    proc.BeginOutputReadLine();
+                    proc.BeginErrorReadLine();
+
+                    // Esperar sin bloquear la interfaz
+                    await Task.Run(() =>
+                    {
+                        proc.WaitForExit();
+                    });
+
+                    await Task.Delay(300);
+
+                    // --------------------------------
+                    // RESULTADO
+                    // --------------------------------
+
+                    if (proc.ExitCode == 0)
+                    {
+                        progressBar.Value = 100;
+                        lblProgress.Text = "100%";
+
+                        labDescargado.Text =
+                            "✓  Download completed";
+
+                        labDescargado.ForeColor =
+                            Color.FromArgb(80, 220, 140);
+
+                        labDescargado.Visible = true;
+
+                        // Mostrar nombre de la canción
+                        lblSong.Text =
+                            $"✓ {nombreCancion}";
+
+                        txtURL.Text = "";
+
+                        await Task.Delay(2500);
+
+                        labDescargado.Visible = false;
+                        lblSong.Visible = false;
+                        progressBar.Visible = false;
+                        lblProgress.Visible = false;
                     }
-                };
-                proc.Start();
-                proc.BeginOutputReadLine();
-                proc.BeginErrorReadLine();
-                proc.WaitForExit();
+                    else
+                    {
+                        progressBar.Visible = false;
+                        lblProgress.Visible = false;
+                        lblSong.Visible = false;
 
-                labDescargando.Visible = false;
-                labDescargado.ForeColor = Color.ForestGreen;
-                labDescargado.Visible = true;
-
-                if (!string.IsNullOrEmpty(nombreArchivoDescargado))
-                {
-                    
-                    MessageBox.Show($"¡Descarga completada! {nombreArchivoDescargado}", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    txtURL.Text = "";
-                    labDescargado.Visible = false;
+                        MessageBox.Show(
+                            "yt-dlp no pudo realizar la descarga.\n\n" +
+                            "Comprueba que el enlace sea correcto y que yt-dlp esté actualizado.",
+                            "Download error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    }
                 }
-                else
-                    MessageBox.Show("No se pudo obtener el nombre del archivo descargado.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al descargar:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                progressBar.Visible = false;
+                lblProgress.Visible = false;
+                lblSong.Visible = false;
+
+                MessageBox.Show(
+                    "Error al descargar:\n\n" + ex.Message,
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+            finally
+            {
+                butDownload.Enabled = true;
+                txtURL.Enabled = true;
+            }
+        }
+
+        // --------------------------------
+        // OBTENER NOMBRE DE LA CANCIÓN
+        // --------------------------------
+
+        private async Task<string> ObtenerNombreCancion(string url)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "yt-dlp",
+
+                    Arguments =
+                        $"--no-playlist " +
+                        $"--js-runtimes deno " +
+                        $"--print \"%(title)s\" " +
+                        $"--skip-download " +
+                        $"\"{url}\"",
+
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using (Process proc = new Process())
+                {
+                    proc.StartInfo = psi;
+
+                    proc.Start();
+
+                    string resultado =
+                        await proc.StandardOutput.ReadToEndAsync();
+
+                    await proc.StandardError.ReadToEndAsync();
+
+                    await Task.Run(() =>
+                    {
+                        proc.WaitForExit();
+                    });
+
+                    if (proc.ExitCode == 0)
+                    {
+                        string[] lineas =
+                            resultado.Split(
+                                new[] { '\r', '\n' },
+                                StringSplitOptions.RemoveEmptyEntries);
+
+                        if (lineas.Length > 0)
+                        {
+                            return lineas[0].Trim();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Si no podemos obtener el título,
+                // continuamos con la descarga.
+            }
+
+            return "";
+        }
+
+        // --------------------------------
+        // PROCESAR PROGRESO DE YT-DLP
+        // --------------------------------
+
+        private void ProcesarSalidaYtdlp(string linea)
+        {
+            try
+            {
+                if (!linea.StartsWith("download:"))
+                {
+                    return;
+                }
+
+                string porcentajeTexto =
+                    linea.Substring("download:".Length)
+                    .Replace("%", "")
+                    .Trim();
+
+                Match match =
+                    Regex.Match(
+                        porcentajeTexto,
+                        @"\d+([.,]\d+)?");
+
+                if (match.Success)
+                {
+                    string numero =
+                        match.Value.Replace(',', '.');
+
+                    if (double.TryParse(
+                        numero,
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double porcentaje))
+                    {
+                        int valor =
+                            Math.Max(
+                                0,
+                                Math.Min(
+                                    100,
+                                    (int)porcentaje));
+
+                        ActualizarProgreso(valor);
+                    }
+                }
+            }
+            catch
+            {
+                // Ignorar líneas que no podamos procesar
+            }
+        }
+
+        // --------------------------------
+        // ACTUALIZAR PROGRESO
+        // --------------------------------
+
+        private void ActualizarProgreso(int valor)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(() =>
+                {
+                    progressBar.Value = valor;
+                    lblProgress.Text = valor + "%";
+                }));
+            }
+            else
+            {
+                progressBar.Value = valor;
+                lblProgress.Text = valor + "%";
             }
         }
     }
